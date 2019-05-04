@@ -7,13 +7,6 @@ from core import (make_urls_from_user_given_domains,
 app = Flask(__name__)
 
 
-@app.context_processor
-def utility_processor():
-    def format_table(df):
-        return df.to_html(index=False, classes='table table-striped table-hover')
-    return dict(format_table=format_table)
-
-
 @app.route("/api")
 def api():
     domains = request.args.get('domains')

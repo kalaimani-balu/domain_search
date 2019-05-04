@@ -27,8 +27,10 @@ def request_the_api_and_parse_the_content(urls):
     """
     Yields dictionary with (domain, ip, type) from API response
     """
+    headers = {'X-API-Key': API_KEY, 'Accept': 'application/json'}
+
     for url in urls:
-        data = requests.get(url, headers={'X-API-Key': API_KEY, 'Accept': 'application/json'})
+        data = requests.get(url, headers=headers)
         error_codes = list(range(400, 600))
 
         if data.status_code in error_codes:
@@ -69,7 +71,7 @@ def get_domain_table_as_html(records, search_term=None):
 
     df.columns = [column.upper() for column in df.columns]
 
-    return df
+    return df.to_html(index=False, classes='table table-striped table-hover')
 
 
 def main():
@@ -82,9 +84,9 @@ def main():
     # get the list of inouts from user and store it as a list
     user_input = input("Enter the list of domains separated by commas: ")
 
-    domains = make_urls_from_user_given_domains(user_input)
+    urls = make_urls_from_user_given_domains(user_input)
 
-    result = list(request_the_api_and_parse_the_content(domains))
+    result = list(request_the_api_and_parse_the_content(urls))
 
     print(get_domain_table_as_html(result))
 
