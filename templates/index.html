@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Domains</title>
+</head>
+<body>
+<table>
+    {% for record in result %}
+    <tr>
+        <td class="c1">{{record.domain}}</td>
+        <td class="c2">{{record.ip}}</td>
+        <td class="c3">{{record.type}}</td>
+    </tr>
+    {% endfor %}
+</table>
+</body>
+</html>
