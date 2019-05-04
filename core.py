@@ -1,11 +1,18 @@
 import json
 
+import os
 import requests
+import pandas as pd
 from prettytable import PrettyTable
 from collections import namedtuple
 
 
 Record = namedtuple('Record', ('domain', 'ip', 'type'))
+
+API_KEY = os.environ.get('API_KEY')
+
+if not API_KEY:
+    raise SystemExit('[ERROR] Set the environment variable "APK_KEY" before starting the application.')
 
 
 def make_urls_from_user_given_domains(input_domains):
@@ -20,12 +27,8 @@ def request_the_api_and_parse_the_content(urls):
     """
     Yields dictionary with (domain, ip, type) from API response
     """
-    headers = {
-        'X-API-Key': 'XXXX', 'Accept': 'application/json'
-    }
-
     for url in urls:
-        data = requests.get(url, headers=headers)
+        data = requests.get(url, headers={'X-API-Key': API_KEY, 'Accept': 'application/json'})
         error_codes = list(range(400, 600))
 
         if data.status_code in error_codes:
@@ -35,7 +38,10 @@ def request_the_api_and_parse_the_content(urls):
             # splitting the result lines since the output has multiple JSON lines instead of a single JSON blob.
             records = map(json.loads, data.text.strip().split('\n'))
 
-            yield from map(lambda record: Record(record['rrname'], record['rdata'], record['rrtype']), records)
+            yield from map(lambda record: Record(record['rrname'].strip('.'),
+                                                 ', '.join(record['rdata']),
+                                                 record['rrtype']),
+                           records)
 
 
 def get_domain_table(records, search_term=None):
@@ -53,6 +59,19 @@ def get_domain_table(records, search_term=None):
     return domain_table
 
 
+def get_domain_table_as_html(records, search_term=None):
+    df = pd.DataFrame(records)
+
+    df = df[df['type'] == 'A']
+
+    if search_term:
+        df = df[df['domain'].str.contains(search_term, na=False)]
+
+    df.columns = [column.upper() for column in df.columns]
+
+    return df
+
+
 def main():
     """
     API for CLI mode
@@ -66,6 +85,8 @@ def main():
     domains = make_urls_from_user_given_domains(user_input)
 
     result = list(request_the_api_and_parse_the_content(domains))
+
+    print(get_domain_table_as_html(result))
 
     if result:
         print(get_domain_table(result))
