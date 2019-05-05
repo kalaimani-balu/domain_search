@@ -48,6 +48,7 @@
             <th>IP Address</th>
         </tr>
         </thead>
+        <tbody>
         {% for record in result %}
         <tr>
             <td><a href="?domain-name={{record.domain}}">{{record.domain}}</a></td>
