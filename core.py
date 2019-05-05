@@ -2,12 +2,8 @@ import json
 
 import os
 import requests
-import pandas as pd
 from prettytable import PrettyTable
-from collections import namedtuple
 
-
-Record = namedtuple('Record', ('domain', 'ip', 'type'))
 
 API_KEY = os.environ.get('API_KEY')
 
@@ -29,69 +25,56 @@ def request_the_api_and_parse_the_content(urls):
     """
     headers = {'X-API-Key': API_KEY, 'Accept': 'application/json'}
 
+    def extract_data(record):
+        return {'domain': record['rrname'].strip('.'),
+                'ip': ', '.join(record['rdata']),
+                'type': record['rrtype']}
+
     for url in urls:
         data = requests.get(url, headers=headers)
         error_codes = list(range(400, 600))
 
         if data.status_code in error_codes:
-            print('Error: problem processing url : {}'.format(url))
-            print(data.text)
-        else:
-            # splitting the result lines since the output has multiple JSON lines instead of a single JSON blob.
-            records = map(json.loads, data.text.strip().split('\n'))
+            raise requests.exceptions.HTTPError(data.text)
 
-            yield from map(lambda record: Record(record['rrname'].strip('.'),
-                                                 ', '.join(record['rdata']),
-                                                 record['rrtype']),
-                           records)
+        records = map(json.loads, data.text.strip().split('\n'))
+        yield from map(extract_data, records)
 
 
-def get_domain_table(records, search_term=None):
+def get_domain_table(result, search_term=None):
     """
     Pretty prints the all the (Domains, IPs, TYPEs) in table format
     """
     domain_table = PrettyTable()
     domain_table.field_names = ["Domain_Name", "Record_Type", "IP"]
 
-    for record in filter(lambda r: r.type == 'A', records):
-        if search_term and search_term not in record.domain:
-            continue
-        domain_table.add_row([record.domain, record.type, ','.join(record.ip)])
-
-    return domain_table
-
-
-def get_domain_table_as_html(records, search_term=None):
-    df = pd.DataFrame(records)
-
-    df = df[df['type'] == 'A']
+    result = filter(lambda r: r['type'] == 'A', result)
 
     if search_term:
-        df = df[df['domain'].str.contains(search_term, na=False)]
+        search_term = [st.strip() for st in search_term.split(',')]
+        result = filter(lambda r: any(map(lambda st: st in r['domain'], search_term)), result)
 
-    df.columns = [column.upper() for column in df.columns]
+    for record in result:
+        domain_table.add_row([record['domain'], record['type'], record['ip']])
 
-    return df.to_html(index=False, classes='table table-striped table-hover')
+    return domain_table
 
 
 def main():
     """
     API for CLI mode
     """
-    # get the search term from user
-    search_input = input("Enter the keyword to search in the resultset: ").strip()
-
-    # get the list of inouts from user and store it as a list
+    # get the list of inputs from user and store it as a list
     user_input = input("Enter the list of domains separated by commas: ")
+
+    # get the search term from user
+    search_input = input("Enter the keyword to search in the result set: ").strip()
 
     urls = make_urls_from_user_given_domains(user_input)
 
     result = list(request_the_api_and_parse_the_content(urls))
 
-    print(get_domain_table_as_html(result))
-
     if result:
-        print(get_domain_table(result))
         print(get_domain_table(result, search_term=search_input))
 
 
