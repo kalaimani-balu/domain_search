@@ -52,7 +52,17 @@
         <tr>
             <td><a href="?domain-name={{record.domain}}">{{record.domain}}</a></td>
             <td>{{record.type}}</td>
-            <td>{{record.ip}}</td>
+            <td>
+                {% if record.single %}
+                <a href="?ip-address={{record.ip}}">{{record.ip}}</a>
+                {% else %}
+
+                {% for ip in record.ip %}
+                <a href="?ip-address={{ip}}">{{ip}}</a>{% if loop.index != loop.length %}&comma;{% endif %}
+                {% endfor %}
+
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
         </tbody>

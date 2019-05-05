@@ -4,7 +4,6 @@ import os
 import requests
 from prettytable import PrettyTable
 
-
 API_KEY = os.environ.get('API_KEY')
 
 if not API_KEY:
@@ -15,8 +14,16 @@ def make_urls_from_user_given_domains(input_domains):
     """
     Give the final URLs to be queried against farsight api
     """
-    base_url = 'https://farsight-tlb01.threatstream.com/lookup/rrset/name/*.'
+    base_url = 'https://farsight-tlb01.threatstream.com/lookup/rrset/name/'
     yield from (base_url + str(domain.strip()) for domain in input_domains.split(','))
+
+
+def make_urls_from_user_given_ips(input_ips):
+    """
+    Give the final URLs to be queried against farsight api
+    """
+    base_url = 'https://farsight-tlb01.threatstream.com/lookup/rdata/ip/'
+    yield from (base_url + str(domain.strip()) for domain in input_ips.split(','))
 
 
 def request_the_api_and_parse_the_content(urls):
@@ -27,8 +34,9 @@ def request_the_api_and_parse_the_content(urls):
 
     def extract_data(record):
         return {'domain': record['rrname'].strip('.'),
-                'ip': ', '.join(record['rdata']),
-                'type': record['rrtype']}
+                'ip': record['rdata'],
+                'type': record['rrtype'],
+                'single': isinstance(record['rdata'], str)}
 
     for url in urls:
         data = requests.get(url, headers=headers)
@@ -55,7 +63,9 @@ def get_domain_table(result, search_term=None):
         result = filter(lambda r: any(map(lambda st: st in r['domain'], search_term)), result)
 
     for record in result:
-        domain_table.add_row([record['domain'], record['type'], record['ip']])
+        domain_table.add_row([record['domain'],
+                              record['type'],
+                              ', '.join(record['ip']) if not record['single'] else record['ip']])
 
     return domain_table
 
